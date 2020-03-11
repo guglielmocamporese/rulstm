@@ -11,6 +11,8 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import json
+torch.cuda.set_device(0)
+
 pd.options.display.float_format = '{:05.2f}'.format
 
 parser = ArgumentParser(description="Training program for RULSTM")
@@ -110,7 +112,7 @@ def get_loader(mode, override_modality = None):
 
     kargs = {
         'path_to_lmdb': path_to_lmdb,
-        'path_to_csv': join(args.path_to_data, f"{mode}.csv"),
+        'path_to_csv': join('./data', f"{mode}.csv"),
         'time_step': args.alpha,
         'img_tmpl': args.img_tmpl,
         'action_samples': args.S_ant if args.task == 'early_recognition' else None,

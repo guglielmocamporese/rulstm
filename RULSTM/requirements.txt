@@ -1,8 +1,8 @@
 certifi==2019.6.16
 cffi==1.12.3
 lmdb==0.96
-mkl-fft==1.0.12
-mkl-random==1.0.2
+#mkl-fft==1.0.12
+#mkl-random==1.0.2
 numpy==1.17.0
 pandas==0.25.0
 pycparser==2.19
