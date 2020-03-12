@@ -75,6 +75,7 @@ parser.add_argument('--resume', action='store_true',
                     help='Whether to resume suspended training')
 
 parser.add_argument('--json_directory', type=str, default = None, help = 'Directory in which to save the generated jsons.')
+parser.add_argument('--smooth_labels', action='store_true', help='Use GloVe + Verb-Noun smoothing labels')
 
 args = parser.parse_args()
 
@@ -103,6 +104,10 @@ if args.visdom:
                                               'title': 'Top5 Acc@1s', 'legend': ['training', 'validation']})
     # define a visdom saver to save the plots
     visdom_saver = VisdomSaver(envs=[exp_name])
+
+if args.smooth_labels:
+    GLOVE_MATRIX = np.load('./data/glove_similarity.npy')
+    VERB_NOUN_MATRIX = np.load('./data/verb-noun_matrix.npy')
 
 def get_loader(mode, override_modality = None):
     if override_modality:
@@ -311,7 +316,18 @@ def trainval(model, loaders, optimizer, epochs, start_epoch, start_best_perf):
                     linear_labels = y.view(-1, 1).expand(-1,
                                                          preds.shape[1]).contiguous().view(-1)
 
-                    loss = F.cross_entropy(linear_preds, linear_labels)
+                    # Smoothing labels
+                    if mode == 'training':
+                        if args.smooth_labels:
+                            glove_prior = torch.from_numpy(GLOVE_MATRIX[linear_labels.cpu().numpy(), :]).to(device)
+                            verb_noun_prior = torch.from_numpy(VERB_NOUN_MATRIX[linear_labels.cpu().numpy(), :]).to(device)
+                            linear_labels = F.one_hot(linear_labels, num_classes=args.num_class)
+                            linear_labels = 0.5 * linear_labels + 0.5 * (0.5 * glove_prior + 0.5 * verb_noun_prior)
+                            loss = torch.mean(torch.sum(- linear_labels * linear_preds.log_softmax(dim=-1), dim=-1))
+                        else:
+                            loss = F.cross_entropy(linear_preds, linear_labels)
+                    else:
+                        loss = F.cross_entropy(linear_preds, linear_labels)
                     # get the predictions for anticipation time = 1s (index -4) (anticipation)
                     # or for the last time-step (100%) (early recognition)
                     # top5 accuracy at 1s
